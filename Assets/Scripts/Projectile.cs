@@ -1,8 +1,9 @@
 using System.Collections;
 using System.Collections.Generic;
+using Unity.Netcode;
 using UnityEngine;
 
-public class Projectile : MonoBehaviour {
+public class Projectile : NetworkBehaviour {
 
 
     Vector3 moveDir;
@@ -14,17 +15,17 @@ public class Projectile : MonoBehaviour {
 
         lifeTime -= Time.deltaTime;
         if(lifeTime < 0) {
-            DestroySelf();
+            DestroySelf_ServerRpc();
         }
 
-        float rayDistance = 0.35f;
+        float rayDistance = 0.35f / 2; // Projectile radius
         if(Physics.Raycast(transform.position, moveDir, out RaycastHit hit, rayDistance)) {
             if(hit.collider.gameObject.TryGetComponent(out Player player)) {
                 player.Damage();
                 Destroy(this.gameObject);
             } else if(hit.collider.gameObject.TryGetComponent(out Projectile projectile)) {
-                projectile.DestroySelf();
-                DestroySelf();
+                projectile.DestroySelf_ServerRpc();
+                DestroySelf_ServerRpc();
             } else {
                 moveDir = Vector3.Reflect(moveDir, hit.normal);
                 flySpeed *= 0.6f;
@@ -42,7 +43,8 @@ public class Projectile : MonoBehaviour {
         this.moveDir = moveDirection;
     }
 
-    public void DestroySelf() {
+    [ServerRpc(RequireOwnership = false)]
+    public void DestroySelf_ServerRpc() {
         Destroy(this.gameObject);
     }
 

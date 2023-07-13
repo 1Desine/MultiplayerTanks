@@ -2,10 +2,11 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
-public class Player : MonoBehaviour {
+public class Player : NetworkBehaviour {
 
     [SerializeField] private LayerMask cursorHitLayerMask;
 
@@ -39,19 +40,25 @@ public class Player : MonoBehaviour {
 
 
     private void Start() {
+        if(IsOwner == false) return;
+
         gameInput = GameInput.Instance;
 
-        gameInput.OnShootPerformed += GameInput_OnShootPerformed;
+        gameInput.OnShootPerformed += GameInput_OnShootPerformed_ServerRpc;
     }
 
-
-    private void GameInput_OnShootPerformed() {
+    [ServerRpc]
+    private void GameInput_OnShootPerformed_ServerRpc() {
         Projectile newProjectile = Instantiate(projectile);
         newProjectile.transform.position = cannonEndPoint.position;
         newProjectile.SetDirection(turret.forward);
+
+        newProjectile.GetComponent<NetworkObject>().Spawn(true);
     }
 
     private void Update() {
+        if(IsOwner == false) return;
+
         HandleMovement();
         HandleAiming();
     }
@@ -110,7 +117,7 @@ public class Player : MonoBehaviour {
 
             float rotateSpeed = 10f * Time.deltaTime;
             if(moveDir != Vector3.zero) {
-                hull.forward = Vector3.Slerp(hull.forward, moveDir, rotateSpeed);
+                this.gameObject.transform.forward = Vector3.Slerp(hull.forward, moveDir, rotateSpeed);
             }
         }
     }
@@ -125,7 +132,7 @@ public class Player : MonoBehaviour {
     private void DestroySelf() {
         Destroy(gameObject);
 
-        gameInput.OnShootPerformed -= GameInput_OnShootPerformed;
+        gameInput.OnShootPerformed -= GameInput_OnShootPerformed_ServerRpc;
     }
 
 }
